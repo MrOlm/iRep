@@ -959,7 +959,7 @@ def parse_genomes_sam(id2g, mappings):
             genomes[name]['samples'][sam]['contigs'][ID] = [0 for i in range(0, length)]
     return genomes
 
-def iRep(fastas, mappings, out, pickle, plot, \
+def iRep(fastas, id2g, mappings, out, pickle, plot, \
             thresholds, gc_correction, threads):
     """
     est. growth from slope of coverage
@@ -1058,7 +1058,10 @@ def print_table(genomes, mappings, out, thresholds):
                 cov[-1].append(sample['avg_cov'])
                 kept[-1].append('%.2f' % (100 * sample['kept_windows']))
                 fragMbp[-1].append('%.0f' % (sample['fragMbp']))
-                gcb[-1].append(sample['GC bias'])
+                try:
+                    gcb[-1].append(sample['GC bias'])
+                except KeyError:
+                    gcb[-1].append('n/a')
                 try:
                     gcr2[-1].append(sample['GC r2'])
                 except:
@@ -1124,9 +1127,8 @@ def validate_args(args):
         print('# file(s): %s already exist. Use -ff to overwrite.' \
                 % (', '.join(found)), file=sys.stderr)
         exit()
-    if args['f'] is None and args['gc_correction'] is True:
-        print('# -f requred for % GC correction', file=sys.stderr)
-        exit()
+    if (args['f'] is None) and (args['no_gc_correction'] == True):
+        raise AttributeError('-f requred for % GC correction')
     return args
 
 def parse_irep_args(args):
@@ -1137,8 +1139,11 @@ def parse_irep_args(args):
     desc = '# calculate the Index of Replication (iRep)'
     parser = argparse.ArgumentParser(description = desc)
     parser.add_argument(\
-            '-f', nargs = '*', action = 'store', required = True, \
+            '-f', nargs = '*', action = 'store', \
             help = 'fasta(s)')
+    parser.add_argument(\
+            '-b', nargs = '*', action = 'store', required = False, \
+            help = 'scaffold to bin lookup file (use instead of -f)')
     parser.add_argument(\
             '-s', nargs = '*', action = 'store', required = True, \
             help = 'sorted sam file(s) for each sample (e.g.: bowtie2 --reorder)')
@@ -1176,21 +1181,32 @@ def main(args):
     '''
     run the main iRep program
     '''
-
     args = validate_args(args)
     fastas = open_files(args['f'])
     sams, mm, sort, sort_b = args['s'], args['mm'], args['sort'], args['M']
+
     # generator for mapping
     mappings = [[s, filter_mapping(s, mm, sort, sort_b)] for s in sams]
+
     # cancel plotting
     if args['no_plot'] is True:
         args['plot'] = False
+
+    # dictionary for scaffold to bin lookup
+    s2bin = None
+    if args['b'] is not None:
+        s2bin = {}
+        for i in args['b']:
+            for line in open(i):
+                line = line.strip().split('\t')
+                s2bin[line[0]] = line[1]
+
     # thresholds
     thresholds = {'min_cov':5, 'min_wins':0.98, 'min_r2':0.90, \
                     'fragMbp':175, 'GC_min_r2':0.0}
     # calculate iRep
     genomes = iRep(\
-                fastas, mappings, \
+                fastas, s2bin, mappings, \
                 args['table'], args['pickle'], args['plot'],
                 thresholds, args['no_gc_correction'], args['t'])
 
