@@ -77,6 +77,9 @@ class TestiRep():
     def run_all(self):
         self.setUp()
 
+        self.pipe_test2()
+        self.tearDown()
+
         self.pipe_test()
         self.tearDown()
 
@@ -127,6 +130,32 @@ class TestiRep():
         test_ireps = self.extract_ireps(out_tsv)
 
         assert sorted(sol_ireps)[0] == sorted(test_ireps)[0]
+
+    def pipe_test2(self):
+        '''
+        test the functioning of pipeing in .sam files, with -b instead of -f
+        '''
+
+        # generate command
+        test_out = os.path.join(self.outdir, 'test.iRep')
+        cmd = ['cat', self.sams[0], '|', 'iRep', '--no-gc-correction', '-b', self.stb, '-o', test_out, '-s', '-']
+
+        # run command
+        execute_cmd(cmd, shell=True)
+
+        # verify output
+        out_pdf = test_out + '.pdf'
+        assert os.stat(out_pdf).st_size > 0
+
+        out_tsv = test_out + '.tsv'
+        assert os.stat(out_tsv).st_size > 0
+
+        sol_tsv = self.irep_solution
+
+        sol_ireps = self.extract_ireps(sol_tsv)
+        test_ireps = self.extract_ireps(out_tsv)
+
+        assert abs(sorted(sol_ireps)[0] - sorted(test_ireps)[0]) <= .05
 
     def regression_test(self):
         '''

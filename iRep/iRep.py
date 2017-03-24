@@ -938,7 +938,11 @@ def parse_genomes_sam(id2g, mappings):
     """
     genomes = {} # dictionary for saving genome info
     for sam in [i[0] for i in mappings]:
-        for line in open(sam):
+        if sam == '-':
+            iterr = sys.stdin
+        else:
+            iterr = open(sam)
+        for line in iterr:
             if line.startswith('@') is False:
                 break
             if line.startswith('@SQ') is False:
