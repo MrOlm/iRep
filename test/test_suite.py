@@ -62,8 +62,10 @@ def execute_cmd(cmd, dry=False, shell=False, stdout=None, stderr=None):
         if not dry: call(cmd)
 
     else:
+        cmd = ' '.join(cmd)
         print(cmd)
-        if not dry: call(cmd, shell=True, stderr=stderr, stdout=stdout)
+        #if not dry: call(cmd, shell=True, stderr=stderr, stdout=stdout)
+        if not dry: call(cmd, shell=True)
 
     return
 
@@ -75,8 +77,10 @@ class TestiRep():
     def run_all(self):
         self.setUp()
 
-        self.stb_test()
+        self.pipe_test()
+        self.tearDown()
 
+        self.stb_test()
         self.tearDown()
 
         self.regression_test()
@@ -96,6 +100,33 @@ class TestiRep():
         if os.path.exists(self.outdir):
             shutil.rmtree(self.outdir)
         os.makedirs(self.outdir)
+
+    def pipe_test(self):
+        '''
+        test the functioning of pipeing in .sam files
+        '''
+
+        # generate command
+        test_out = os.path.join(self.outdir, 'test.iRep')
+        cmd = ['cat', self.sams[0], '|', 'iRep', '-f', self.genome, '-o', test_out, \
+            '-s', '-']
+
+        # run command
+        execute_cmd(cmd, shell=True)
+
+        # verify output
+        out_pdf = test_out + '.pdf'
+        assert os.stat(out_pdf).st_size > 0
+
+        out_tsv = test_out + '.tsv'
+        assert os.stat(out_tsv).st_size > 0
+
+        sol_tsv = self.irep_solution
+
+        sol_ireps = self.extract_ireps(sol_tsv)
+        test_ireps = self.extract_ireps(out_tsv)
+
+        assert sorted(sol_ireps)[0] == sorted(test_ireps)[0]
 
     def regression_test(self):
         '''
